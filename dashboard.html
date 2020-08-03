@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+body{
+    width:1060px;
+    margin:50px auto;
+}
+path {  stroke: #fff; }
+path:hover {  opacity:0.9; }
+rect:hover {  fill:blue; }
+.axis {  font: 10px sans-serif; }
+.legend tr{    border-bottom:1px solid grey; }
+.legend tr:first-child{    border-top:1px solid grey; }
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {  display: none; }
+.legend{
+    margin-bottom:76px;
+    display:inline-block;
+    border-collapse: collapse;
+    border-spacing: 0px;
+}
+.legend td{
+    padding:4px 5px;
+    vertical-align:bottom;
+}
+.legendFreq, .legendPerc{
+    align:right;
+    width:50px;
+}
+.myDiv {
+  border: 5px outset steelblue;
+  background-color: lightblue;
+  text-align: center;
+}
+
+.clickme {
+border: 2px outset steelblue;
+  background-color: lightblue;
+  text-align: center;
+}
+.button {
+  background-color: lightblue;
+  border: 2px outset steelblue;
+  color: blue;
+  padding: 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  transition-duration: 0.4s;
+  cursor: pointer;
+  hover : {
+  background-color: white;
+  color: steelblue;
+}
+}
+</style>
+<body>
+<div class="myDiv">
+ <h2><B>Covid-19 Infection (Are you Aware?)<B></h2>
+  <p><B>The below provides an interactive slide show providing different information/perspectives/severity related to the pandemic Covid-19.</B></p>
+  <p><B>Information is presented in 3 different slides through use of interactive graphs providing tootips for values and further exploratory analysis.</B></p>
+  <p><I><B>Easily navigate using below buttons</B></I></p>
+<button class="button" onclick="document.location='index.html'"><----</button>
+<button class="button" onclick="document.location='index.html'"><--</button>
+<button class="button" disabled onclick="document.location='dashboard.html'">----></button>
+</div>
+<div id='dashboard'>
+<p><B>Interactive chart provides Top 5 countries having highest Covid-19 infections.</B></p>
+<p><B>Hover over the graphs to get detailed(country/month) specific information</B></p>
+</div>
+<div class="clickme">
+<p> Created & submitted by : Vishal Agarwal <br> Datasets used from : https://www.nytimes.com/interactive/2020/us/coronavirus-us-cases.html <br>
+For more information on Covid-19 visit : https://www.who.int/emergencies/diseases/novel-coronavirus-2019
+</p>
+</div>
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script>
+function dashboard(id, cData){
+    var barColor = 'steelblue';
+    function segColor(c){ return {Jan:"#807dba", Feb:"#e08214",Mar:"#41ab5d",Apr:"#607dba", May:"#e04214",Jun:"#800000"}[c]; }
+    
+    // compute total for each state.
+    cData.forEach(function(d){d.total=d.freq.Jan+d.freq.Feb+d.freq.Mar+d.freq.Apr+d.freq.May+d.freq.Jun;});
+    
+    // function to handle histogram.
+    function histo(fD){
+        var hG={},    hGDim = {t: 60, r: 0, b: 30, l: 0};
+        hGDim.w = 500 - hGDim.l - hGDim.r, 
+        hGDim.h = 300 - hGDim.t - hGDim.b;
+            
+        
+        var hGsvg = d3.select(id).append("svg")
+            .attr("width", hGDim.w + hGDim.l + hGDim.r)
+            .attr("height", hGDim.h + hGDim.t + hGDim.b).append("g")
+            .attr("transform", "translate(" + hGDim.l + "," + hGDim.t + ")");
+
+        
+        var x = d3.scale.ordinal().rangeRoundBands([0, hGDim.w], 0.1)
+                .domain(fD.map(function(d) { return d[0]; }));
+
+        
+        hGsvg.append("g").attr("class", "x axis")
+            .attr("transform", "translate(0," + hGDim.h + ")")
+            .call(d3.svg.axis().scale(x).orient("bottom"));
+
+        
+        var y = d3.scale.linear().range([hGDim.h, 0])
+                .domain([0, d3.max(fD, function(d) { return d[1]; })]);
+
+        
+        var bars = hGsvg.selectAll(".bar").data(fD).enter()
+                .append("g").attr("class", "bar");
+        
+        
+        bars.append("rect")
+            .attr("x", function(d) { return x(d[0]); })
+            .attr("y", function(d) { return y(d[1]); })
+            .attr("width", x.rangeBand())
+            .attr("height", function(d) { return hGDim.h - y(d[1]); })
+            .attr('fill',barColor)
+            .on("mouseover",mouseover)
+            .on("mouseout",mouseout);
+            
+        
+        bars.append("text").text(function(d){ return d3.format(",")(d[1])})
+            .attr("x", function(d) { return x(d[0])+x.rangeBand()/2; })
+            .attr("y", function(d) { return y(d[1])-5; })
+            .attr("text-anchor", "Febdle");
+        
+        function mouseover(d){  
+            var st = cData.filter(function(s){ return s.State == d[0];})[0],
+                nD = d3.keys(st.freq).map(function(s){ return {type:s, freq:st.freq[s]};});
+               
+               
+            pC.update(nD);
+            leg.update(nD);
+        }
+        
+        function mouseout(d){       
+            pC.update(tF);
+            leg.update(tF);
+        }
+        
+        
+        hG.update = function(nD, color){
+            
+            y.domain([0, d3.max(nD, function(d) { return d[1]; })]);
+            
+            
+            var bars = hGsvg.selectAll(".bar").data(nD);
+            
+            
+            bars.select("rect").transition().duration(500)
+                .attr("y", function(d) {return y(d[1]); })
+                .attr("height", function(d) { return hGDim.h - y(d[1]); })
+                .attr("fill", color);
+
+            
+            bars.select("text").transition().duration(500)
+                .text(function(d){ return d3.format(",")(d[1])})
+                .attr("y", function(d) {return y(d[1])-5; });            
+        }        
+        return hG;
+    }
+    
+ 
+    function pie(pD){
+        var pC ={},    pieDim ={w:250, h: 250};
+        pieDim.r = Math.min(pieDim.w, pieDim.h) / 2;
+                
+        
+        var piesvg = d3.select(id).append("svg")
+            .attr("width", pieDim.w).attr("height", pieDim.h).append("g")
+            .attr("transform", "translate("+pieDim.w/2+","+pieDim.h/2+")");
+        
+        
+        var arc = d3.svg.arc().outerRadius(pieDim.r - 10).innerRadius(0);
+
+        
+        var pie = d3.layout.pie().sort(null).value(function(d) { return d.freq; });
+
+        
+        piesvg.selectAll("path").data(pie(pD)).enter().append("path").attr("d", arc)
+            .each(function(d) { this._current = d; })
+            .style("fill", function(d) { return segColor(d.data.type); })
+            .on("mouseover",mouseover).on("mouseout",mouseout);
+
+        
+        pC.update = function(nD){
+            piesvg.selectAll("path").data(pie(nD)).transition().duration(500)
+                .attrTween("d", arcTween);
+        }        
+        
+        function mouseover(d){
+            
+            hG.update(cData.map(function(v){ 
+                return [v.State,v.freq[d.data.type]];}),segColor(d.data.type));
+        }
+        
+        function mouseout(d){
+            
+            hG.update(cData.map(function(v){
+                return [v.State,v.total];}), barColor);
+        }
+        
+        function arcTween(a) {
+            var i = d3.interpolate(this._current, a);
+            this._current = i(0);
+            return function(t) { return arc(i(t));    };
+        }    
+        return pC;
+    }
+    
+    
+    function legend(lD){
+        var leg = {};
+            
+        
+        var legend = d3.select(id).append("table").attr('class','legend');
+        
+        
+        var tr = legend.append("tbody").selectAll("tr").data(lD).enter().append("tr");
+            
+        
+        tr.append("td").append("svg").attr("width", '16').attr("height", '16').append("rect")
+            .attr("width", '16').attr("height", '16')
+			.attr("fill",function(d){ return segColor(d.type); });
+            
+        
+        tr.append("td").text(function(d){ return d.type;});
+
+        
+        tr.append("td").attr("class",'legendFreq')
+            .text(function(d){ return d3.format(",")(d.freq);});
+
+        
+        tr.append("td").attr("class",'legendPerc')
+            .text(function(d){ return getLegend(d,lD);});
+
+        
+        leg.update = function(nD){
+            
+            var l = legend.select("tbody").selectAll("tr").data(nD);
+
+            
+            l.select(".legendFreq").text(function(d){ return d3.format(",")(d.freq);});
+
+            
+            l.select(".legendPerc").text(function(d){ return getLegend(d,nD);});        
+        }
+        
+        function getLegend(d,aD){ 
+            return d3.format("%")(d.freq/d3.sum(aD.map(function(v){ return v.freq; })));
+        }
+
+        return leg;
+    }
+    
+    
+    var tF = ['Jan','Feb','Mar','Apr','May','Jun'].map(function(d){ 
+        return {type:d, freq: d3.sum(cData.map(function(t){ return t.freq[d];}))}; 
+    });    
+    
+    
+    var sF = cData.map(function(d){return [d.State,d.total];});
+
+    var hG = histo(sF), 
+        pC = pie(tF), 
+        leg= legend(tF);  
+}
+</script>
+
+<script>
+var covidData=[
+{State:'US',freq:{Jan:7, Feb:17, Mar:188677, Apr:883966, May:726455, Jun:421839}}
+,{State:'Brazil',freq:{Jan:0, Feb:2, Mar:5715, Apr:81470, May:427622, Jun:518064}}
+,{State:'Russia',freq:{Jan:2, Feb:0, Mar:2335, Apr:104161, May:299345, Jun:162449}}
+,{State:'India',freq:{Jan:1, Feb:2, Mar:1394, Apr:33466, May:155746, Jun:204439}}
+,{State:'UK',freq:{Jan:2, Feb:21, Mar:25458, Apr:147000, May:103675, Jun:27129}}
+];
+
+dashboard('#dashboard',covidData);
+</script>
